@@ -2,10 +2,10 @@
 # Factor for downscaling of test images
 SCALE = 0.5
 #Specify image paths
-img_path1 = r'/home/drdrew/Projects/diplom/semi-global-matching/Code/left.png'
+img_path1 = r'/home/drdrew/Projects/diplom/semi-global-matching/Code/im2.png'
 #left.png'
 #im2.png'
-img_path2 = r'/home/drdrew/Projects/diplom/semi-global-matching/Code/right.png'
+img_path2 = r'/home/drdrew/Projects/diplom/semi-global-matching/Code/im6.png'
 #right.png'
 #im6.png'
 

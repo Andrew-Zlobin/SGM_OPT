@@ -157,7 +157,7 @@ def get_path_cost(slice, offset, parameters):
     return minimum_cost_path
 
 
-def aggregate_costs(cost_volume, parameters, paths):#, return_value, return_value_index):
+def aggregate_costs(cost_volume, parameters, paths, return_value=[None], return_value_index=0):
     """
     second step of the sgm algorithm, aggregates matching costs for N possible directions (8 in this case).
     :param cost_volume: array containing the matching costs.
@@ -165,11 +165,15 @@ def aggregate_costs(cost_volume, parameters, paths):#, return_value, return_valu
     :param paths: structure containing all directions in which to aggregate costs.
     :return: H x W x D x N array of matching cost for all defined directions.
     """
+
+    print("start process", return_value_index)
+
     height = cost_volume.shape[0]
     width = cost_volume.shape[1]
     disparities = cost_volume.shape[2]
     start = -(height - 1)
     end = width - 1
+
 
     aggregation_volume = np.zeros(shape=(height, width, disparities, paths.size), dtype=cost_volume.dtype)
 
@@ -225,12 +229,18 @@ def aggregate_costs(cost_volume, parameters, paths):#, return_value, return_valu
         path_id = path_id + 2
 
         dusk = t.time()
+    print("finish process", return_value_index)
+        
     print('\t(done in {:.2f}s)'.format(dusk - dawn))
 
-    # return_value[return_value_index] = aggregation_volume
+    return_value[return_value_index] = aggregation_volume
     return aggregation_volume
 
-def compute_costs_by_improved_census(left, right, parameters):
+def cross_based_cost_agregation(cost_volume, parameters, paths, return_value=[None], return_value_index=0):
+    pass
+
+
+def compute_costs_by_improved_census(left, right, parameters, save_images):
     
     assert left.shape[0] == right.shape[0] and left.shape[1] == right.shape[1], 'left & right must have the same shape.'
     assert parameters.max_disparity > 0, 'maximum disparity must be greater than 0.'
@@ -248,7 +258,7 @@ def compute_costs_by_improved_census(left, right, parameters):
     left_census_values = np.zeros(shape=(height, width), dtype=np.uint64)
     right_census_values = np.zeros(shape=(height, width), dtype=np.uint64)
 
-    print('\tComputing left and right census...', end='')
+    print('\tComputing left and right improved census...', end='')
     sys.stdout.flush()
     dawn = t.time()
     # pixels on the border will have no census values
@@ -256,18 +266,35 @@ def compute_costs_by_improved_census(left, right, parameters):
         for x in range(x_offset, width - x_offset):
             left_census = np.int64(0)
 
-            array_to_delete = left[(y - y_offset):(y + y_offset + 1), (x - x_offset):(x + x_offset + 1)].ravel()
+            # compute census window 
+            I = cwidth
+            M = 3 * I
+            T = 20
+            center_pixel = left[y, x]
+            while I < M:
+                I_offset = int (I / 2)
+                if y - I_offset < 0 or y + I_offset + 1 >= height or x - I_offset < 0 or x + I_offset + 1 >= width:
+                    I -= 2
+                    break
+                X = (left[(y - I_offset):(y + I_offset + 1), (x - I_offset):(x + I_offset + 1)] == center_pixel).all(axis=-1).sum()
+                if X < T:
+                    break
+                I+=2
+                T+=1
+            I_offset = int (I / 2)
+
+            array_to_delete = left[(y - I_offset):(y + I_offset + 1), (x - I_offset):(x + I_offset + 1)].ravel()
             mask = np.logical_or(array_to_delete == array_to_delete.max(), array_to_delete == array_to_delete.min())
             center_pixel = np.ma.masked_array(array_to_delete, mask = mask).mean()
             # print(center_pixel)
             #left[y, x]
             
-            reference = np.full(shape=(cheight, cwidth), fill_value=center_pixel, dtype=np.int64)
-            image = left[(y - y_offset):(y + y_offset + 1), (x - x_offset):(x + x_offset + 1)]
+            reference = np.full(shape=(I, I), fill_value=center_pixel, dtype=np.int64)
+            image = left[(y - I_offset):(y + I_offset + 1), (x - I_offset):(x + I_offset + 1)]
             comparison = image - reference
             for j in range(comparison.shape[0]):
                 for i in range(comparison.shape[1]):
-                    if (i, j) != (y_offset, x_offset):
+                    if (i, j) != (I_offset, I_offset):
                         left_census = left_census << 1
                         if comparison[j, i] < 0:
                             bit = 1
@@ -278,13 +305,35 @@ def compute_costs_by_improved_census(left, right, parameters):
             left_census_values[y, x] = left_census
 
             right_census = np.int64(0)
-            center_pixel = right[y, x]
-            reference = np.full(shape=(cheight, cwidth), fill_value=center_pixel, dtype=np.int64)
-            image = right[(y - y_offset):(y + y_offset + 1), (x - x_offset):(x + x_offset + 1)]
+
+            # compute census window 
+            I = cwidth
+            M = 5 * I
+            T = 20
+            center_pixel = left[y, x]
+            while I < M:
+                I_offset = int (I / 2)
+                if y - I_offset < 0 or y + I_offset + 1 >= height or x - I_offset < 0 or x + I_offset + 1 >= width:
+                    I -= 2
+                    break
+                X = (right[(y - I_offset):(y + I_offset + 1), (x - I_offset):(x + I_offset + 1)] == center_pixel).all(axis=-1).sum()
+                if X < T:
+                    break
+                I+=2
+                T+=1
+            I_offset = int (I / 2)
+
+
+            # center_pixel = right[y, x]
+            array_to_delete = right[(y - I_offset):(y + I_offset + 1), (x - I_offset):(x + I_offset + 1)].ravel()
+            mask = np.logical_or(array_to_delete == array_to_delete.max(), array_to_delete == array_to_delete.min())
+            center_pixel = np.ma.masked_array(array_to_delete, mask = mask).mean()
+            reference = np.full(shape=(I, I), fill_value=center_pixel, dtype=np.int64)
+            image = right[(y - I_offset):(y + I_offset + 1), (x - I_offset):(x + I_offset + 1)]
             comparison = image - reference
             for j in range(comparison.shape[0]):
                 for i in range(comparison.shape[1]):
-                    if (i, j) != (y_offset, x_offset):
+                    if (i, j) != (I_offset, I_offset):
                         right_census = right_census << 1
                         if comparison[j, i] < 0:
                             bit = 1
@@ -449,8 +498,14 @@ def select_disparity(aggregation_volume):
     :param aggregation_volume: H x W x D x N array of matching cost for all defined directions.
     :return: disparity image.
     """
+    print("aggregation_volume.shape = ", aggregation_volume.shape)
+
     volume = np.sum(aggregation_volume, axis=3)
+    print("volume = ", np.unique(volume))
+    print("volume.shape = ", volume.shape)
     disparity_map = np.argmin(volume, axis=2)
+    print("disparity_map.shape = ", disparity_map.shape)
+    print("disparity_map = ", np.unique(disparity_map))
     return disparity_map
 
 
@@ -464,7 +519,7 @@ def normalize(volume, parameters):
     return 255.0 * volume / parameters.max_disparity
 
 
-def get_recall(disparity, gt, args):
+def get_recall(disparity, gt, disp):
     """
     computes the recall of the disparity map.
     :param disparity: disparity image.
@@ -473,8 +528,8 @@ def get_recall(disparity, gt, args):
     :return: rate of correct predictions.
     """
     gt = np.float32(cv2.imread(gt, cv2.IMREAD_GRAYSCALE))
-    gt = np.int16(gt / 255.0 * float(args.disp))
-    disparity = np.int16(np.float32(disparity) / 255.0 * float(args.disp))
+    gt = np.int16(gt / 255.0 * float(disp))
+    disparity = np.int16(np.float32(disparity) / 255.0 * float(disp))
     correct = np.count_nonzero(np.abs(disparity - gt) <= 3)
     return float(correct) / gt.size
 
