@@ -157,16 +157,8 @@ if __name__ == "__main__":
 
     reconstruction.preprocessing()
 
-    reconstruction.create_disparity_map(compute_costs_by_improved_census, aggregate_costs)
+    reconstruction.create_disparity_map(compute_costs_by_improved_census, aggregate_costs) # _by_improved_census
 
     reconstruction.create_depth_map()
     
     reconstruction.save_ply()
-    # print("imgL =", np.unique(reconstruction.imgL))
-    # print("imgR =", np.unique(reconstruction.imgR))
-
-    # print(reconstruction.params.max_disparity)
-    # print(reconstruction.params.P1)
-    # print(reconstruction.params.P2)
-    # print(reconstruction.params.csize)
-    # print(reconstruction.params.bsize)

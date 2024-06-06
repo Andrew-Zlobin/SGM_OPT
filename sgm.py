@@ -1,11 +1,3 @@
-"""
-python implementation of the semi-global matching algorithm from Stereo Processing by Semi-Global Matching
-and Mutual Information (https://core.ac.uk/download/pdf/11134866.pdf) by Heiko Hirschmuller.
-
-author: David-Alexandre Beaupre
-date: 2019/07/12
-"""
-
 import argparse
 import sys
 import time as t
@@ -17,31 +9,16 @@ import numpy as np
 from multiprocessing import Process, Manager
 
 
-# class ThreadWithReturnValue(Thread):
-#     def __init__(self, group=None, target=None, name=None,
-#                  args=(), kwargs={}, Verbose=None):
-#         Thread.__init__(self, group, target, name, args, kwargs, Verbose)
-#         self._return = None
-#     def run(self):
-#         if self._Thread__target is not None:
-#             self._return = self._Thread__target(*self._Thread__args,
-#                                                 **self._Thread__kwargs)
-#     def join(self):
-#         Thread.join(self)
-#         return self._return
+
 
 class Direction:
     def __init__(self, direction=(0, 0), name='invalid'):
-        """
-        represent a cardinal direction in image coordinates (top left = (0, 0) and bottom right = (1, 1)).
-        :param direction: (x, y) for cardinal direction.
-        :param name: common name of said direction.
-        """
+
         self.direction = direction
         self.name = name
 
 
-# 8 defined directions for sgm
+
 N = Direction(direction=(0, -1), name='north')
 NE = Direction(direction=(1, -1), name='north-east')
 E = Direction(direction=(1, 0), name='east')
@@ -54,9 +31,7 @@ NW = Direction(direction=(-1, -1), name='north-west')
 
 class Paths:
     def __init__(self):
-        """
-        represent the relation between the directions.
-        """
+
         self.paths = [N, NE, E, SE, S, SW, W, NW]
         self.size = len(self.paths)
         self.effective_paths = [(E,  W), (SE, NW), (S, N), (SW, NE)]
@@ -64,14 +39,7 @@ class Paths:
 
 class Parameters:
     def __init__(self, max_disparity=64, P1=5, P2=70, csize=(7, 7), bsize=(3, 3)):
-        """
-        represent all parameters used in the sgm algorithm.
-        :param max_disparity: maximum distance between the same pixel in both images.
-        :param P1: penalty for disparity difference = 1
-        :param P2: penalty for disparity difference > 1
-        :param csize: size of the kernel for the census transform.
-        :param bsize: size of the kernel for blurring the images and median filtering.
-        """
+
         self.max_disparity = max_disparity
         self.P1 = P1
         self.P2 = P2
@@ -80,13 +48,7 @@ class Parameters:
 
 
 def load_images(left_name, right_name, parameters):
-    """
-    read and blur stereo image pair.
-    :param left_name: name of the left image.
-    :param right_name: name of the right image.
-    :param parameters: structure containing parameters of the algorithm.
-    :return: blurred left and right images.
-    """
+
     left = cv2.imread(left_name, 0)
     left = cv2.GaussianBlur(left, parameters.bsize, 0, 0)
     right = cv2.imread(right_name, 0)
@@ -95,14 +57,7 @@ def load_images(left_name, right_name, parameters):
 
 
 def get_indices(offset, dim, direction, height):
-    """
-    for the diagonal directions (SE, SW, NW, NE), return the array of indices for the current slice.
-    :param offset: difference with the main diagonal of the cost volume.
-    :param dim: number of elements along the path.
-    :param direction: current aggregation direction.
-    :param height: H of the cost volume.
-    :return: arrays for the y (H dimension) and x (W dimension) indices.
-    """
+
     y_indices = []
     x_indices = []
 
@@ -127,14 +82,7 @@ def get_indices(offset, dim, direction, height):
 
 
 def get_path_cost(slice, offset, parameters):
-    """
-    part of the aggregation step, finds the minimum costs in a D x M slice (where M = the number of pixels in the
-    given direction)
-    :param slice: M x D array from the cost volume.
-    :param offset: ignore the pixels on the border.
-    :param parameters: structure containing parameters of the algorithm.
-    :return: M x D array of the minimum costs for a given slice in a given direction.
-    """
+
     other_dim = slice.shape[0]
     disparity_dim = slice.shape[1]
 
@@ -158,13 +106,7 @@ def get_path_cost(slice, offset, parameters):
 
 
 def aggregate_costs(cost_volume, parameters, paths, return_value=[None], return_value_index=0):
-    """
-    second step of the sgm algorithm, aggregates matching costs for N possible directions (8 in this case).
-    :param cost_volume: array containing the matching costs.
-    :param parameters: structure containing parameters of the algorithm.
-    :param paths: structure containing all directions in which to aggregate costs.
-    :return: H x W x D x N array of matching cost for all defined directions.
-    """
+
 
     print("start process", return_value_index)
 
@@ -382,14 +324,7 @@ def compute_costs_by_improved_census(left, right, parameters, save_images):
 
 
 def compute_costs(left, right, parameters, save_images):
-    """
-    first step of the sgm algorithm, matching cost based on census transform and hamming distance.
-    :param left: left image.
-    :param right: right image.
-    :param parameters: structure containing parameters of the algorithm.
-    :param save_images: whether to save census images or not.
-    :return: H x W x D array with the matching costs.
-    """
+
     assert left.shape[0] == right.shape[0] and left.shape[1] == right.shape[1], 'left & right must have the same shape.'
     assert parameters.max_disparity > 0, 'maximum disparity must be greater than 0.'
 
@@ -493,11 +428,7 @@ def compute_costs(left, right, parameters, save_images):
 
 
 def select_disparity(aggregation_volume):
-    """
-    last step of the sgm algorithm, corresponding to equation 14 followed by winner-takes-all approach.
-    :param aggregation_volume: H x W x D x N array of matching cost for all defined directions.
-    :return: disparity image.
-    """
+
     print("aggregation_volume.shape = ", aggregation_volume.shape)
 
     volume = np.sum(aggregation_volume, axis=3)
@@ -510,23 +441,12 @@ def select_disparity(aggregation_volume):
 
 
 def normalize(volume, parameters):
-    """
-    transforms values from the range (0, 64) to (0, 255).
-    :param volume: n dimension array to normalize.
-    :param parameters: structure containing parameters of the algorithm.
-    :return: normalized array.
-    """
+
     return 255.0 * volume / parameters.max_disparity
 
 
 def get_recall(disparity, gt, disp):
-    """
-    computes the recall of the disparity map.
-    :param disparity: disparity image.
-    :param gt: path to ground-truth image.
-    :param args: program arguments.
-    :return: rate of correct predictions.
-    """
+
     gt = np.float32(cv2.imread(gt, cv2.IMREAD_GRAYSCALE))
     gt = np.int16(gt / 255.0 * float(disp))
     disparity = np.int16(np.float32(disparity) / 255.0 * float(disp))
@@ -535,10 +455,7 @@ def get_recall(disparity, gt, disp):
 
 
 def sgm():
-    """
-    main function applying the semi-global matching algorithm.
-    :return: void.
-    """
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--left', default='cones/im2.png', help='name (path) to the left image')
     parser.add_argument('--right', default='cones/im6.png', help='name (path) to the right image')
@@ -577,15 +494,7 @@ def sgm():
         cv2.imwrite('disp_map_right_cost_volume.png', right_disparity_map)
 
     print('\nStarting left aggregation computation...')
-    # aggregation_volume = [None, None]
-    # manager = Manager()
-    # aggregation_volume = manager.dict()
-    # p1 = Process(target=aggregate_costs, args=(left_cost_volume, parameters, paths, aggregation_volume, 0), daemon=True)
-    # p2 = Process(target=aggregate_costs, args=(right_cost_volume, parameters, paths, aggregation_volume, 1), daemon=True)
-    # p1.start()
-    # p2.start()
-    # p1.join()
-    # p2.join()
+
     aggregation_volume = aggregation_volume.values()
     left_aggregation_volume = aggregate_costs(left_cost_volume, parameters, paths)#, aggregation_volume, 0) #aggregation_volume[0]
     # print('\nStarting right aggregation computation...')
@@ -647,15 +556,7 @@ def create_disparity_map(imgL,imgR,dispMap=[]):
     print("right_cost_volume =", np.unique(right_cost_volume))
 
     print('\nStarting left aggregation computation...')
-    # aggregation_volume = [None, None]
-    # manager = Manager()
-    # aggregation_volume = manager.dict()
-    # p1 = Process(target=aggregate_costs, args=(left_cost_volume, parameters, paths, aggregation_volume, 0), daemon=True)
-    # p2 = Process(target=aggregate_costs, args=(right_cost_volume, parameters, paths, aggregation_volume, 1), daemon=True)
-    # p1.start()
-    # p2.start()
-    # p1.join()
-    # p2.join()
+
     # aggregation_volume = aggregation_volume.values()
     left_aggregation_volume = aggregate_costs(left_cost_volume, parameters, paths)#, aggregation_volume, 0) #aggregation_volume[0]
     # print('\nStarting right aggregation computation...')

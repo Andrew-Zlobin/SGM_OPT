@@ -10,6 +10,7 @@ import numpy as np
 def Image_processing(image_location, scale):
 	# img= color.rgb2gray(io.imread(image_location))
 	img = cv2.imread(image_location, 0)
+	# img = cv2.GaussianBlur(img, (5,5), 0, 0)
 	row, col = img.shape
 	# img = cv2.pyrDown(img, dstsize= (col//4, row // 4))
 	# img = rescale(img, 0.25, anti_aliasing=False)

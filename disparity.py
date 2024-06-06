@@ -8,13 +8,13 @@ def generate_window(row, col, image, blockSize):
     return window
 
 def disparitymap(imgL,imgR,dispMap=[]):
-    # Size of the search window 
+
     blockSize = 5
     h, w = imgL.shape
     dispMap = np.zeros((h, w))
-    # maximum disparity to search for (Tuned by experimenting)
+
     max_disp = int(w//3)
-    # Initializing disparity value 
+
     dispVal = 0
     tic=time.time()
     for row in range(0, h - blockSize + 1, blockSize):
@@ -49,16 +49,6 @@ def disparitymap(imgL,imgR,dispMap=[]):
     return dispMap
 
 
-# print("Calculating depth....")
-# depth = np.zeros(dispMap.shape)
-
-# for r in range(0,h):
-#     for c in range(0,w):
-#         depth[r,c] =  (CAMERA_DISTANCE * FOCAL_LENGTH) / dispMap[r,c]
-
-# image = plt.imshow(depth,cmap='jet_r')
-# plt.colorbar(image)
-# plt.show()
 
 
 
